@@ -1,205 +1,160 @@
 classdef SeMIS_Bay_Nataf
-    % Sequential Multiple importance sampling with Nataf transfomration for Bayesian updating
+    % SeMIS Bayesian updating in Nataf-transformed (standard normal) space.
+    %
+    % Paper-aligned naming:
+    %   - r_i    (implementation)  <->  lambda_i (theory)
+    %   - r_max  (implementation)  <->  r^{max}_{0:i-1} (running max of log-likelihood)
+    %
+    % Key implementation note:
+    %   EvlLKF() computes the SOFT TRUNCATION term (logLi):
+    %       logLi(theta) = log( min( L(theta) / exp(r_max + r_i), 1 ) )
+    %                    = min( logL(theta) - r_max - r_i, 0 )
+    %   The ratio beta_i(theta) in Eq. (24) is constructed elsewhere
+    %   (e.g., in ResRat) as a ratio of two logLi terms.
 
     properties
-        % Name       Description                                       Type              Size
-        % -----------------------------------------------------------------------------------
-        % LKF        Likelihood function                              /                [1,1]
-        % Nfun       Length of function list                           double           [1,1]
-        % Ndim       Number of dimension of parameters                 double           [1,1]
-        % X          Samples in standard normal space                  double     [Ndim,Nsam]
-        % Y          Y value of U                                      doubl         [4,Nsam]
-        % -----------------------------------------------------------------------------------
-        LKF
-        Nfun = 4;
-        Ndim
-        Ncal
-        X
-        Y
+        LKF            % Likelihood/prior wrapper (must provide .Ndim, .EvlLKF, .Pdis.U2X)
+        Nfun = 4;      % Reserved / kept for compatibility
+        Ndim           % Parameter dimension
+        Ncal           % #evaluations in the last EvlY call
+        X              % Samples in U-space, size [Ndim, Nsam]
+        Y              % Cached base terms associated with X (see EvlY / UpdY)
     end
 
     properties
-        % Properties to be updated:
-        % Name       Description                                         Type            Size
-        % -----------------------------------------------------------------------------------
-        % G          parameters in likelihood function                   double         [1,2]
-        %            --threshold of LKF
-        %            --maximum value of LKF
-        % -----------------------------------------------------------------------------------
-        G = [-inf,-inf];
+        % Intermediate parameters packed as G = [r_i, r_max]
+        %   r_i   : adaptive threshold controlling soft truncation (lambda_i)
+        %   r_max : running maximum of log-likelihood (r^{max}_{0:i-1})
+        G = [-inf, -inf];
     end
 
     properties(Dependent)
-        % Dependent properties:
-        % Name        Description                                        Type            Size
-        % -----------------------------------------------------------------------------------
-        % FlgCvg      flag of convergence                                logical        [1,1]
-        % -----------------------------------------------------------------------------------
-        FlgCvg
+        FlgCvg         % Convergence flag based on r_i
     end
 
     methods
         function obj = SeMIS_Bay_Nataf(LKF)
-            obj.LKF = LKF;
+            % Construct with target model LKF defined in X-space
+            obj.LKF  = LKF;
             obj.Ndim = LKF.Ndim;
         end
 
-        function Li = EvlLKF(obj)
-            % Evaluate the Intermediate likelihood Li
-            % ----------------------------------------------------------------------
-            % SYNTAX:
-            % Li = EvlLi(obj,f)
-            % ----------------------------------------------------------------------
-            % INPUTS:
-            % obj   : class constructed                                        [1,1]
-            % y     : function list of samples                              [4,Nsam]
-            %         --likelihood function L
-            %         --prior PDF P
-            % ----------------------------------------------------------------------
-            % OUTPUTS:
-            % Li    : intermediate likelihood function Li                   [1,Nsam]
-            % ----------------------------------------------------------------------
-            y = obj.Y;
-            f = y(1,:);
-            g = obj.G;
-            gth = g(1);
-            fmax = g(2);
-            if isinf(g(1))
-                Li = zeros(size(f));
+        function logLi = EvlLKF(obj)
+            % Evaluate SOFT TRUNCATION term logLi(theta).
+            %
+            % Inputs (from obj.Y):
+            %   logL = obj.Y(1,:) : log-likelihood values
+            %
+            % Parameters (from obj.G):
+            %   r_i   = G(1)      : adaptive threshold (lambda_i)
+            %   r_max = G(2)      : running max log-likelihood
+            %
+            % Output:
+            %   logLi(theta) = min( logL - r_max - r_i , 0 )
+
+            y    = obj.Y;
+            logL = y(1,:);
+
+            r_i   = obj.G(1);
+            r_max = obj.G(2);
+
+            if isinf(r_i)
+                logLi = zeros(size(logL));          % initialization: no truncation
             else
-                Li = min(f-fmax-gth,0);
+                logLi = min(logL - r_max - r_i, 0); % soft truncation (log domain)
             end
         end
 
-        function pi = EvlPDF(obj)
-            % Evaluate the Intermediate prior PDF pi
-            % ----------------------------------------------------------------------
-            % SYNTAX:
-            % Li = EvlLi(obj,f)
-            % ----------------------------------------------------------------------
-            % INPUTS:
-            % obj   : class constructed                                        [1,1]
-            % y     : function list of samples                              [4,Nsam]
-            %         --likelihood function L
-            %         --prior PDF P
-            % ----------------------------------------------------------------------
-            % OUTPUTS:
-            % pi    : intermediate likelihood function pi                   [1,Nsam]
-            % ----------------------------------------------------------------------
-            y = obj.Y;
-            p = y(2,:);
-            pi = p;
+        function logPi = EvlPDF(obj)
+            % Return prior log-density logPi(theta).
+            logPi = obj.Y(2,:);
         end
 
-        function [g,obj] = UpdObj(obj,y,p)
-            % Update obj with Y
-            % ----------------------------------------------------------------------
-            % SYNTAX:
-            % [g,h,obj] = UpdObj(obj,y)
-            % ----------------------------------------------------------------------
-            % INPUTS:
-            % obj   : class constructed                                        [1,1]
-            % y     : output function values                                [4,Nsam]
-            %         --intermediate likelihood function Li
-            %         --intermediate prior PDF pi
-            %         --likelihood function L
-            %         --prior PDF p
-            % p     : conditional probability in SuS
-            % ----------------------------------------------------------------------
-            % OUTPUTS:
-            % g     : updated parameters for intermediate likelihood function
-            % h     : updated parameters for intermediate prior distribution
-            % obj   : class updated
-            % ----------------------------------------------------------------------
+        function [G,obj] = UpdObj(obj,y,p)
+            % Update intermediate parameters G = [r_i, r_max].
+            %
+            % Inputs:
+            %   y : function table (log-likelihood in row 3: y(3,:))
+            %   p : target conditional probability
+            %
+            % Output:
+            %   G : updated [r_i, r_max]
+            %
+            % r_i is determined by solving Eq. (25) via 1D constrained search,
+            % where beta_i(theta) is constructed in ResRat(...) from logLi terms.
 
-            % update g
-            % --------------------------------
-            f = y(3,:);
-            g = obj.G;
-            gth = g(1);
-            fmax = g(2);
-            fmax = max(max(f,[],"all"),fmax);
+            % --- update r_max (running maximum of log-likelihood) ---
+            logL  = y(3,:);
+            r_i   = obj.G(1);
+            r_max = max(max(logL,[],"all"), obj.G(2));
 
-            dfmax=fmax-g(2);
+            dr_max = r_max - obj.G(2);
 
-            maxi = 100;
+            % --- search r_i such that logmean(beta_i) ~= log(p) ---
+            maxi    = 100;
             err_min = inf;
-            fun = @(x) abs(logmean(ResRat(obj,y,[x,fmax]),"all")-log(p));
-            gmin = max(-1e12,gth-dfmax);
 
-            gmax = 0;
-            gbnd = (gmax-gmin)/maxi;
+            fun = @(ri) abs( ...
+                logmean(ResRat(obj, y, [ri, r_max]), "all") - log(p) ...
+            );
+
+            % Bounds (kept identical to original implementation)
+            rmin = max(-1e12, r_i - dr_max);
+            rmax = 0;
+
+            rbnd = (rmax - rmin) / maxi;
             for i = 1:maxi
-                [g_tmp,err] = fminbnd(fun,gmin+(i-1)*gbnd,gmin+i*gbnd);
-                if err<err_min
+                [r_tmp, err] = fminbnd(fun, rmin+(i-1)*rbnd, rmin+i*rbnd);
+                if err < err_min
                     err_min = err;
-                    gth = g_tmp;
+                    r_i = r_tmp;
                 end
             end
-            g = [gth,fmax];
-            % -------------------------------
 
-            % update obj
-            % --------------------------------
-            obj.G = g;
-            % --------------------------------
+            G = [r_i, r_max];
+            obj.G = G;
         end
 
         function FlgCvg = get.FlgCvg(obj)
-            FlgCvg = obj.G(1)>=-1e-4; %original
+            % Convergence criterion (unchanged)
+            FlgCvg = obj.G(1) >= -1e-4;
         end
 
         function obj = EvlY(obj,u)
-            % evaluate the Y values
-            % ----------------------------------------------------------------------
-            % SYNTAX:
-            % y = EvlLKF(obj,theta)
-            % ----------------------------------------------------------------------
-            % INPUTS:
-            % obj   : class constructed
-            % u     : Samples in standard normal space                   [Ndim,Nsam]
-            % ----------------------------------------------------------------------
-            % OUTPUTS:
-            % obj   : class with updated Y
-            % y     : Y value of X                                     [Nfun+2,Nsam]
-            %         --likelihood function L
-            %         --prior PDF P
-            % ----------------------------------------------------------------------
-            x = U2X(obj,u);
-            L = obj.LKF.EvlLKF(x);
-            P = logGauss(u);
-            obj.X = u;
-            obj.Y = [L;P];
+            % Evaluate and cache base terms at samples u (U-space).
+            %
+            % Side effects:
+            %   obj.Y = [logL; logPi]
+            %   where:
+            %     logL  = log-likelihood in X-space
+            %     logPi = log-prior in U-space
+
+            x     = U2X(obj,u);
+            logL  = obj.LKF.EvlLKF(x);
+            logPi = logGauss(u);
+
+            obj.X    = u;
+            obj.Y    = [logL; logPi];
             obj.Ncal = size(u,2);
         end
 
         function y = UpdY(obj,y)
-            % evaluate the likelihood function values
-            % ----------------------------------------------------------------------
-            % SYNTAX:
-            % y = EvlLKF(obj,theta)
-            % ----------------------------------------------------------------------
-            % INPUTS:
-            % obj   : class constructed                                        [1,1]
-            % x     : variable samples                                   [Ndim,Nsam]
-            % ----------------------------------------------------------------------
-            % OUTPUTS:
-            % y     : output function values                           [Nfun+4,Nsam]
-            %         --intermediate likelihood function Li
-            %         --intermediate prior PDF pi
-            %         --likelihood function L
-            %         --prior PDF p
-            % ----------------------------------------------------------------------
-            % extraction the y except for Li and pi
-            y = y(3:end,:);
+            % Refresh and prepend intermediate terms.
+            %
+            % Output layout:
+            %   y := [logLi; logPi; base_terms...]
+
+            y = y(3:end,:);          % drop existing intermediate rows
             obj.Y = y;
-            Pi = obj.EvlPDF;
-            Li = obj.EvlLKF;
-            y = [Li;Pi;y];
+
+            logPi = obj.EvlPDF;
+            logLi = obj.EvlLKF;
+
+            y = [logLi; logPi; y];
         end
 
         function x = U2X(obj,u)
-            % Nataf situition
+            % Map U-space samples to X-space via Nataf transformation
             x = obj.LKF.Pdis.U2X(u);
         end
     end
