@@ -1,81 +1,102 @@
-# Sequential-multiple-importance-sampling-for-multimodal-Bayesian-inference
+# Sequential Multiple Importance Sampling for Multimodal Bayesian Inference
 
-This repository provides a MATLAB implementation of the **Sequential Multiple Importance Sampling (SeMIS)** algorithm for **multimodal Bayesian inference**.
+MATLAB implementation of the **Sequential Multiple Importance Sampling (SeMIS)** algorithm for multimodal Bayesian inference, with subset simulation (SuS) included for comparison. This code accompanies the paper:
 
-The code accompanies the paper:
+> **Sequential multiple importance sampling for multimodal Bayesian inference.**
+> *Mechanical Systems and Signal Processing*.
 
-> **Sequential multiple importance sampling for multimodal Bayesian inference**  
-> *Mechanical Systems and Signal Processing*
+## Contents
 
----
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Repository structure](#repository-structure)
+- [Quick start](#quick-start)
+- [Benchmark likelihoods](#benchmark-likelihoods)
+- [Outputs](#outputs)
+- [Citation](#citation)
+- [License](#license)
 
-## Description
+## Overview
 
-SeMIS is a multiple importance sampling (MIS)–based Bayesian inference algorithm designed for **multimodal and high-dimensional posterior distributions**.  
-The algorithm constructs a sequence of **softly truncated prior–based proposal distributions** that smoothly evolve from the prior to the posterior. This strategy improves sample mixing across separated modes while retaining efficient Bayesian evidence estimation.
-
-The implementation integrates:
-- Sequentially adapted proposal distributions
-- Balance heuristic weighting for MIS
-- Parallel MCMC sampling
-- Elliptical slice sampling (ESS)
-- Bayesian evidence estimation and posterior resampling
-
----
-
-## Algorithm Summary
+SeMIS is a multiple importance sampling (MIS) based algorithm for Bayesian inference with multimodal and high-dimensional posterior distributions. It builds a sequence of **softly truncated, prior-based proposal distributions** that evolve smoothly from the prior to the posterior, which improves mixing across separated modes while still allowing efficient estimation of the Bayesian evidence.
 
 At each iteration, SeMIS:
-1. Constructs a proposal distribution by softly truncating the prior using likelihood information
-2. Adaptively determines the proposal parameter based on a target acceptance rate
-3. Generates samples using parallel MCMC chains initialized from accepted seeds
-4. Accumulates all samples through multiple importance sampling
-5. Estimates Bayesian evidence and resamples posterior samples
 
-The proposal sequence gradually transitions from the prior distribution to the posterior distribution, ensuring robustness for multimodal inference problems.
+1. constructs a proposal distribution by softly truncating the prior using likelihood information;
+2. adaptively determines the proposal parameter based on a target acceptance rate;
+3. generates samples with parallel MCMC chains started from accepted seeds (elliptical slice sampling by default);
+4. accumulates all samples through multiple importance sampling with the balance heuristic.
 
----
+After the last iteration, the Bayesian evidence is estimated and posterior samples are obtained by resampling. All weights are computed in the log domain for numerical stability.
 
 ## Requirements
 
-- MATLAB (tested with recent versions)
-- No external toolboxes are required beyond standard MATLAB functionality
+- MATLAB
+- Statistics and Machine Learning Toolbox (`makedist` and probability distribution objects)
 
----
-
-## How to Run
-
-To execute the algorithm and reproduce the numerical examples reported in the paper, simply run:
-
-```matlab
-
-drive_SuS_SeMIS
+## Repository structure
 
 ```
-The driver script defines the Bayesian inference problem, executes the SeMIS algorithm (and comparison algorithms when enabled), and outputs Bayesian evidence estimates, posterior samples, and performance metrics.
+.
+├── drive_SuS_SeMIS.m                    % driver: runs SeMIS and SuS on a benchmark problem
+├── SeMIS_Bay_Nataf.m                    % SeMIS intermediate distributions (soft truncation) in standard normal space
+├── SuS_Bay_Nataf.m                      % subset simulation for Bayesian updating (comparison)
+├── SeMCS.m                              % sequential Monte Carlo loop shared by SeMIS and SuS
+├── MCMC-samplers/
+│   ├── ES.m                             % elliptical slice sampling
+│   └── aCS.m                            % adaptive conditional sampling
+├── Likelihood-functions/                % benchmark likelihoods with reference log-evidence
+├── support functions/                   % MIS estimator and posterior resampling (MIS.m), Nataf transformation, weights, ...
+├── Operations on Logarithmic values/    % log-domain arithmetic (logsum, logplus, logmean, ...)
+├── LICENSE
+└── README.md
+```
 
----
+## Quick start
 
-## Main Files
+1. Add the repository and all its subfolders to the MATLAB path, for example from the repository root:
 
-- **`SeMIS_Bay_Nataf.m`**  
-  Core implementation of the Sequential Multiple Importance Sampling (SeMIS) algorithm.  
-  This file includes:
-  - Construction of sequential proposal distributions based on softly truncated priors  
-  - Adaptive determination of proposal hyperparameters using a target acceptance rate   
-  - Bayesian evidence estimation and posterior resampling  
+   ```matlab
+   >> addpath(genpath(pwd))
+   ```
 
-- **`drive_SuS_SeMIS.m`**  
-  Main driver script for running SeMIS and benchmark examples.  
-  It is used to reproduce the numerical studies and comparisons reported in the paper.
+2. Run the driver:
 
-Auxiliary functions provide support for likelihood evaluation, probabilistic transformations (e.g., Nataf transformation), benchmark problem definitions, and sampling utilities.
+   ```matlab
+   >> drive_SuS_SeMIS
+   ```
 
----
+The driver defines the benchmark problem (by default `LKF_nD_GaussianLogGamma` with `Ndim = 2`), runs SeMIS and SuS for 100 independent runs, and computes the evidence and efficiency statistics described below. To change the problem, edit the `Tfun = ...` line and `Ndim` at the top of `drive_SuS_SeMIS.m`. The sample size per level is set by `smc_SeMIS.NumSam` (default 1700) and `smc_SuS.NumSam` (default 1000).
+
+## Benchmark likelihoods
+
+| File | Description | Reference log-evidence |
+|---|---|---|
+| `LKF_2D_Eggbox.m` | 2D eggbox likelihood, uniform prior on [0, 10π]² | 235.856 |
+| `LKF_nD_GaussianLogGamma.m` | Gaussian + LogGamma, n-dimensional | −8.19 (n = 2), −20.47 (n = 5), −40.94 (n = 10), −81.887 (n = 20) |
+| `LKF_nD_GaussianShells.m` | two Gaussian shells, n-dimensional | −1.75 (n = 2) to −168.16 (n = 70); see the file header |
+
+Each likelihood class provides the prior (`Pdis`), the log-likelihood and the reference value `logz_ref` used by the driver.
+
+## Outputs
+
+During the run, each iteration prints the sample size, the number of chains, the samples per chain and the number of likelihood evaluations. After all runs, the following variables are available in the workspace:
+
+| Variable | Meaning |
+|---|---|
+| `logz_SeMIS_MIS_bias`, `logz_SeMIS_MIS_cv` | relative bias and CoV (%) of the SeMIS log-evidence, MIS estimator |
+| `logz_SeMIS_SIS_bias`, `logz_SeMIS_SIS_cv` | relative bias and CoV (%) of the SeMIS log-evidence, SIS estimator |
+| `logz_SuS_bias`, `logz_SuS_cv` | relative bias and CoV (%) of the SuS log-evidence |
+| `Npos_Ncal_SeMIS_mu`, `Npos_Ncal_SuS_mu` | posterior samples per likelihood evaluation (%) |
+| `Ncal_SeMIS_mu`, `Ncal_SuS_mu` | average number of likelihood evaluations per run |
+| `x_pos_SeMIS`, `x_pos_SuS` | posterior samples in the physical parameter space (last run) |
 
 ## Citation
 
-If you use this code in your research, please cite the corresponding paper:
+If you use this code in your research, please cite:
 
-> Sequential multiple importance sampling for multimodal Bayesian inference  
-> *Mechanical Systems and Signal Processing*
+> Sequential multiple importance sampling for multimodal Bayesian inference. *Mechanical Systems and Signal Processing*.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
