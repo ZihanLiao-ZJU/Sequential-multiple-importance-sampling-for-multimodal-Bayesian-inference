@@ -2,8 +2,8 @@
 
 MATLAB implementation of the **Sequential Multiple Importance Sampling (SeMIS)** algorithm for multimodal Bayesian inference, with subset simulation (SuS) included for comparison. This code accompanies the paper:
 
-> **Sequential multiple importance sampling for multimodal Bayesian inference.**
-> *Mechanical Systems and Signal Processing*.
+> **Sequential multiple importance sampling for multi-modal Bayesian inference.**
+> *Mechanical Systems and Signal Processing*, 245 (2026) 113788. doi: [10.1016/j.ymssp.2025.113788](https://doi.org/10.1016/j.ymssp.2025.113788)
 
 ## Contents
 
@@ -12,6 +12,7 @@ MATLAB implementation of the **Sequential Multiple Importance Sampling (SeMIS)**
 - [Repository structure](#repository-structure)
 - [Quick start](#quick-start)
 - [Benchmark likelihoods](#benchmark-likelihoods)
+- [Custom likelihood](#custom-likelihood)
 - [Outputs](#outputs)
 - [Citation](#citation)
 - [License](#license)
@@ -76,7 +77,50 @@ The driver defines the benchmark problem (by default `LKF_nD_GaussianLogGamma` w
 | `LKF_nD_GaussianLogGamma.m` | Gaussian + LogGamma, n-dimensional | −8.19 (n = 2), −20.47 (n = 5), −40.94 (n = 10), −81.887 (n = 20) |
 | `LKF_nD_GaussianShells.m` | two Gaussian shells, n-dimensional | −1.75 (n = 2) to −168.16 (n = 70); see the file header |
 
-Each likelihood class provides the prior (`Pdis`), the log-likelihood and the reference value `logz_ref` used by the driver.
+Each likelihood class provides the prior (`Pdis`), the log-likelihood and the reference value `logz_ref` used by the driver. To solve your own problem, see [Custom likelihood](#custom-likelihood).
+
+## Custom likelihood
+
+Any user-defined Bayesian updating problem can be solved by writing a likelihood class with the same interface as the files in `Likelihood-functions/` and passing it to the driver in place of the benchmark. The algorithm only accesses the following members:
+
+| Member | Type | Description |
+|---|---|---|
+| `Ndim` | scalar | number of uncertain parameters |
+| `Pdis` | `Nataf` object | prior distribution, built as `Nataf(Marg_X, Rho_X)` from a column array of MATLAB distribution objects (`makedist`) and their correlation matrix |
+| `EvlLKF(obj, theta)` | method | log-likelihood of the samples `theta` (`Ndim × Nsam`, in the physical parameter space); must return a `1 × Nsam` row vector |
+| `logz_ref` | scalar | reference log-evidence; `drive_SuS_SeMIS` uses it only to compute the relative bias, so set it to `NaN` if unknown |
+
+The sampler works in standard normal space and maps samples to the parameter space through `Pdis.U2X` before calling `EvlLKF`, so the likelihood is written directly in terms of the physical parameters. `EvlLKF` is called with many samples at once and must return the **logarithm** of the likelihood.
+
+Minimal example: two parameters with independent standard normal priors and a Gaussian likelihood for two noisy observations. Save it as `MyLikelihood.m` in a folder on the MATLAB path (e.g. `Likelihood-functions/`):
+
+```matlab
+classdef MyLikelihood
+    properties
+        Ndim = 2;
+        Pdis = Nataf(repmat(makedist("Normal","mu",0,"sigma",1),2,1), eye(2));
+        logz_ref = NaN;   % reference log-evidence, used only for the bias statistics (NaN if unknown)
+    end
+
+    methods
+        function logL = EvlLKF(~, theta)
+            % theta : [Ndim x Nsam] parameter samples
+            % logL  : [1 x Nsam] log-likelihood
+            y_obs = [1.0; -0.5];   % observed data
+            sigma = 0.2;           % measurement noise standard deviation
+            logL = -0.5*sum((theta - y_obs).^2, 1)/sigma^2 - numel(y_obs)*log(sqrt(2*pi)*sigma);
+        end
+    end
+end
+```
+
+Then, in `drive_SuS_SeMIS.m`, replace the benchmark with your class:
+
+```matlab
+Tfun = MyLikelihood;
+```
+
+The rest of the driver is unchanged.
 
 ## Outputs
 
@@ -95,7 +139,19 @@ During the run, each iteration prints the sample size, the number of chains, the
 
 If you use this code in your research, please cite:
 
-> Sequential multiple importance sampling for multimodal Bayesian inference. *Mechanical Systems and Signal Processing*.
+> Li, B., He, X., & Liao, Z. (2026). Sequential multiple importance sampling for multi-modal Bayesian inference. *Mechanical Systems and Signal Processing*, 245, 113788. https://doi.org/10.1016/j.ymssp.2025.113788
+
+```bibtex
+@article{li2026sequential,
+  title   = {Sequential multiple importance sampling for multi-modal Bayesian inference},
+  author  = {Li, Binbin and He, Xiao and Liao, Zihan},
+  journal = {Mechanical Systems and Signal Processing},
+  volume  = {245},
+  pages   = {113788},
+  year    = {2026},
+  doi     = {10.1016/j.ymssp.2025.113788}
+}
+```
 
 ## License
 
