@@ -22,10 +22,10 @@ classdef SeMIS_Bay_Nataf
     end
 
     properties
-        % Intermediate parameters packed as G = [r_i, r_max]
+        % Intermediate threshold parameters are stored in G.parameters = [r_i, r_max]
         %   r_i   : adaptive threshold controlling soft truncation (lambda_i)
         %   r_max : running maximum of log-likelihood (r^{max}_{0:i-1})
-        G = [-inf, -inf];
+        G = struct('parameters', [-inf, -inf], 'lambda', 0.6);
     end
 
     properties(Dependent)
@@ -55,8 +55,8 @@ classdef SeMIS_Bay_Nataf
             y    = obj.Y;
             logL = y(1,:);
 
-            r_i   = obj.G(1);
-            r_max = obj.G(2);
+            r_i   = obj.G.parameters(1);
+            r_max = obj.G.parameters(2);
 
             if isinf(r_i)
                 logLi = zeros(size(logL));          % initialization: no truncation
@@ -85,10 +85,10 @@ classdef SeMIS_Bay_Nataf
 
             % --- update r_max (running maximum of log-likelihood) ---
             logL  = y(3,:);
-            r_i   = obj.G(1);
-            r_max = max(max(logL,[],"all"), obj.G(2));
+            r_i   = obj.G.parameters(1);
+            r_max = max(max(logL,[],"all"), obj.G.parameters(2));
 
-            dr_max = r_max - obj.G(2);
+            dr_max = r_max - obj.G.parameters(2);
 
             % --- search r_i such that logmean(beta_i) ~= log(p) ---
             maxi    = 100;
@@ -112,12 +112,13 @@ classdef SeMIS_Bay_Nataf
             end
 
             G = [r_i, r_max];
-            obj.G = G;
+            obj.G.parameters = G;
+            G = obj.G;
         end
 
         function FlgCvg = get.FlgCvg(obj)
             % Convergence criterion (unchanged)
-            FlgCvg = obj.G(1) >= -1e-4;
+            FlgCvg = obj.G.parameters(1) >= -1e-4;
         end
 
         function obj = EvlY(obj,u)
@@ -159,3 +160,4 @@ classdef SeMIS_Bay_Nataf
         end
     end
 end
+

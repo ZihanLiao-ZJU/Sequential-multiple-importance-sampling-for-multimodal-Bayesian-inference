@@ -18,8 +18,8 @@ classdef SuS_Bay_Nataf
     end
 
     properties
-        % Intermediate parameters G = [r_i, r_max]
-        G = [-inf, -inf];
+        % Intermediate threshold parameters are stored in G.parameters = [r_i, r_max]
+        G = struct('parameters', [-inf, -inf], 'lambda', 0.6);
     end
 
     properties(Dependent)
@@ -40,8 +40,8 @@ classdef SuS_Bay_Nataf
             y     = obj.Y;
             logL  = y(1,:);
 
-            r_i   = obj.G(1);
-            r_max = obj.G(2);
+            r_i   = obj.G.parameters(1);
+            r_max = obj.G.parameters(2);
 
             if isinf(r_i)
                 logLi = zeros(size(logL));   % initial level: no truncation
@@ -66,7 +66,7 @@ classdef SuS_Bay_Nataf
             l_sorted = sort(logL,"descend");
 
             Nsed = round(Nsam * p);
-            r_max = max(max(logL,[],"all"), obj.G(2));
+            r_max = max(max(logL,[],"all"), obj.G.parameters(2));
 
             if Nsed > 0
                 fth = (l_sorted(Nsed) + l_sorted(Nsed+1)) / 2;
@@ -77,7 +77,8 @@ classdef SuS_Bay_Nataf
             r_i = fth - r_max;
             G   = [r_i, r_max];
 
-            obj.G = G;
+            obj.G.parameters = G;
+            G = obj.G;
         end
 
         function [u_sed, y_sed] = SltSed(obj,u,y,Nsam)
@@ -87,8 +88,8 @@ classdef SuS_Bay_Nataf
             y = y(1:obj.Nfun,:);
 
             logL = y(3,:);
-            r_i  = obj.G(1);
-            r_max = obj.G(2);
+            r_i  = obj.G.parameters(1);
+            r_max = obj.G.parameters(2);
             Lth  = r_max + r_i;
 
             Ns   = round(Nsam ./ (1:Nsam));
@@ -119,7 +120,7 @@ classdef SuS_Bay_Nataf
         end
 
         function FlgCvg = get.FlgCvg(obj)
-            FlgCvg = obj.G(1) >= -1e-1;
+            FlgCvg = obj.G.parameters(1) >= -1e-1;
         end
 
         function out = BayInf(obj,in)
@@ -142,11 +143,11 @@ classdef SuS_Bay_Nataf
             zi = zeros(Nite,1);
             for ite = 1:Nite
                 if ite < Nite
-                    Li  = g{ite}(1)  + g{ite}(2);
-                    Li1 = g{ite+1}(1)+ g{ite+1}(2);
+                    Li  = g{ite}.parameters(1)  + g{ite}.parameters(2);
+                    Li1 = g{ite+1}.parameters(1)+ g{ite+1}.parameters(2);
                     w_z = min(logminus(y{ite}(3,:),Li), logminus(Li1,Li));
                 else
-                    Li  = g{ite}(1) + g{ite}(2);
+                    Li  = g{ite}.parameters(1) + g{ite}.parameters(2);
                     w_z = logminus(y{ite}(3,:),Li);
                 end
                 zi(ite) = logmean(w_z,"all") + c(ite);
@@ -162,7 +163,7 @@ classdef SuS_Bay_Nataf
                 if ite < Nite
                     w_tmp = y{ite}(3,:) + y{ite}(4,:) ...
                           - y{ite}(1,:) - y{ite}(2,:) ...
-                          + log(double(y{ite}(3,:) < g{ite+1}(1)+g{ite+1}(2)));
+                          + log(double(y{ite}(3,:) < g{ite+1}.parameters(1)+g{ite+1}.parameters(2)));
                 else
                     w_tmp = y{ite}(3,:) + y{ite}(4,:) ...
                           - y{ite}(1,:) - y{ite}(2,:);
@@ -217,3 +218,4 @@ classdef SuS_Bay_Nataf
         end
     end
 end
+

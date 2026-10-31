@@ -1,7 +1,7 @@
 function [lograt,c] = ResRat(intBay,y,g)
 % reshape y
 y = y(1:end,:);
-intBay.G = g;
+if isstruct(g), intBay.G = g; else, intBay.G.parameters = g; end
 intBay.Y = y(3:end,:);
 Li = intBay.EvlLKF;
 pi = intBay.EvlPDF;

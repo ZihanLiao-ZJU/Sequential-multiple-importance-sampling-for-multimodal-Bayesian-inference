@@ -1,4 +1,6 @@
-clear;
+% Select CW_aMH, aCS, HMC, or ES; the original default is ES.
+SamplerClass = @ES;
+addpath(genpath(fileparts(mfilename('fullpath'))));
 
 %% Problem definition and target density
 Ndim = 2;                                      % Parameter dimension
@@ -12,8 +14,8 @@ IntBay_SuS   = SuS_Bay_Nataf(Tfun);            % SuS-based inference
 IntBay_SeMIS = SeMIS_Bay_Nataf(Tfun);          % SeMIS-based inference
 
 % Sequential Monte Carlo samplers
-smc_SuS   = SeMCS(ES(IntBay_SuS));
-smc_SeMIS = SeMCS(ES(IntBay_SeMIS));
+smc_SuS   = SeMCS(SamplerClass(IntBay_SuS));
+smc_SeMIS = SeMCS(SamplerClass(IntBay_SeMIS));
 
 % Sampling budget per level
 smc_SeMIS.NumSam = 1700;
@@ -46,7 +48,7 @@ for irun = 1:Nrun
     [u_pos,~] = out_mis.PosSim;                % Posterior samples (U-space)
     Npos_SeMIS(irun) = size(u_pos,2);
     logz_SeMIS_SIS(irun) = out_mis.C(end) ...
-                         + out_sm.g{end}(2);   % SIS evidence
+                         + out_sm.g{end}.parameters(2);   % SIS evidence
 
     x_pos_SeMIS = Tfun.Pdis.U2X(u_pos);        % Map to physical space
 
@@ -79,3 +81,4 @@ Npos_Ncal_SuS_mu   = mean(Npos_SuS   ./ Ncal_SuS)   * 100;
 
 Ncal_SeMIS_mu = mean(Ncal_SeMIS);
 Ncal_SuS_mu   = mean(Ncal_SuS);
+

@@ -62,6 +62,10 @@ classdef SeMCS
             if use_G
                 Nite_int = length(obj.G);
                 g(1:Nite_int) = obj.G;
+                for j=1:Nite_int
+                    if ~isstruct(g{j}), g{j}=struct('parameters',g{j},'lambda',0.6); end
+                end
+                intBay.G=g{1}; sampler.BayStc=intBay;
             else
                 Nite_int = 0;                      % will be adaptively updated
                 g{1} = intBay.G;                   % start from current IntBay.G
@@ -81,7 +85,11 @@ classdef SeMCS
 
                 % 2) Update intermediate distribution parameter g
                 if ite + 1 <= Nite_int
-                    intBay.G = g{ite+1};            % use prescribed sequence
+                    oldG = intBay.G;
+                    intBay.G = g{ite+1};
+                    if isfield(oldG, 'lambda'), intBay.G.lambda = oldG.lambda; end
+                    if isfield(oldG, 'HMC_time'), intBay.G.HMC_time = oldG.HMC_time; end
+                    g{ite+1} = intBay.G;            % use prescribed sequence
                 else
                     [g{ite+1}, intBay] = intBay.UpdObj(y{ite}, p);  % adaptive update
                 end
@@ -123,3 +131,4 @@ classdef SeMCS
         end
     end
 end
+
