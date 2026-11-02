@@ -65,7 +65,7 @@ for irun = 1:Nrun
 end
 
 %% Performance and efficiency statistics
-% Relative bias and coefficient of variation of evidence
+% Mean and sample SD of normalized log-evidence error (not evidence CoV)
 logz_SeMIS_MIS_bias = mean(logz_SeMIS_MIS/logz_ref - 1) * 100;
 logz_SeMIS_MIS_cv   = std (logz_SeMIS_MIS/logz_ref - 1) * 100;
 
