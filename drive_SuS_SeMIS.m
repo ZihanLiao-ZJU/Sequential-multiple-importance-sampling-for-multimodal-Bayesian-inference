@@ -1,6 +1,3 @@
-setup_semcs();
-% Select 'public_20261102' to replay the historical public sampler settings.
-method_profile='author_latest';
 % Select CW_aMH, aCS, HMC, or ES; the original default is ES.
 SamplerClass = @ES;
 addpath(genpath(fileparts(mfilename('fullpath'))));
@@ -13,8 +10,8 @@ Tfun = LKF_nD_GaussianLogGamma(Ndim);          % Gaussian–LogGamma benchmark
 logz_ref = Tfun.logz_ref;                     % Reference log-evidence
 
 % Bayesian inference objects in Nataf space
-IntBay_SuS   = SuS_Bay_Nataf(Tfun,method_profile);            % SuS-based inference
-IntBay_SeMIS = SeMIS_Bay_Nataf(Tfun,method_profile);          % SeMIS-based inference
+IntBay_SuS   = SuS_Bay_Nataf(Tfun);            % SuS-based inference
+IntBay_SeMIS = SeMIS_Bay_Nataf(Tfun);          % SeMIS-based inference
 
 % Sequential Monte Carlo samplers
 smc_SuS   = SeMCS(SamplerClass(IntBay_SuS));
