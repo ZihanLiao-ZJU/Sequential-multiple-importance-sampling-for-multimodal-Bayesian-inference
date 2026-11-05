@@ -23,7 +23,6 @@ classdef MIS
         X
         Y
         G
-        H
         C
         NumIte
         NumSam

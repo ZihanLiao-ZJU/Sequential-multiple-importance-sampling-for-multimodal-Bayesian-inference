@@ -33,13 +33,29 @@ classdef SeMIS_Bay_Nataf
     end
 
     methods
-        function obj = SeMIS_Bay_Nataf(LKF)
+        function spec = sampler_profile(~,family,name)
+            spec=method_sampler_profile(family,name);
+        end
+        function obj=apply_method_profile(obj,spec)
+            if SeMISPaperARSPolicy.enabled(obj)&&~strcmp(spec.name,'paper_ars_20261103')
+                error('SeMISPaperARS:FreshModelRequired', ...
+                    'Create a fresh model to change from the initialized paper ARS method policy.');
+            end
+            if strcmp(spec.name,'paper_ars_20261103'),obj=SeMISPaperARSPolicy.initialize(obj);end
+        end
+        function obj = SeMIS_Bay_Nataf(LKF, method_profile)
+            if nargin < 2 || isempty(method_profile), method_profile='author_latest'; end
+            setup_semcs();
             % Construct with target model LKF defined in X-space
             obj.LKF  = LKF;
             obj.Ndim = LKF.Ndim;
+            obj=semcs.configure_method_profile(obj,'semis_bayes',method_profile);
         end
 
         function logLi = EvlLKF(obj)
+            if SeMISPaperARSPolicy.enabled(obj)
+                logLi=SeMISPaperARSPolicy.factor(obj.Y(1,:),obj.G.parameters);return;
+            end
             % Evaluate SOFT TRUNCATION term logLi(theta).
             %
             % Inputs (from obj.Y):
@@ -71,6 +87,9 @@ classdef SeMIS_Bay_Nataf
         end
 
         function [G,obj] = UpdObj(obj,y,p)
+            if SeMISPaperARSPolicy.enabled(obj)
+                [G,obj]=SeMISPaperARSPolicy.UpdObj(obj,y,p);return;
+            end
             % Update intermediate parameters G = [r_i, r_max].
             %
             % Inputs:
@@ -117,6 +136,9 @@ classdef SeMIS_Bay_Nataf
         end
 
         function FlgCvg = get.FlgCvg(obj)
+            if SeMISPaperARSPolicy.enabled(obj)
+                FlgCvg=obj.G.parameters(1)>=obj.G.paper_controls.log_r_stop;return;
+            end
             % Convergence criterion (unchanged)
             FlgCvg = obj.G.parameters(1) >= -1e-4;
         end
@@ -159,5 +181,48 @@ classdef SeMIS_Bay_Nataf
             x = obj.LKF.Pdis.U2X(u);
         end
     end
+    methods
+        function [y,g,obj,Ncal]=advance(obj,x,y,p)
+            if SeMISPaperARSPolicy.enabled(obj)
+                [y,g,obj,Ncal]=SeMISPaperARSPolicy.advance(obj,x,y,p);return;
+            end
+            [g,obj]=obj.UpdObj(y,p);Ncal=0;
+        end
+        function [xs,ys,steps]=select_seeds(obj,x,y,N)
+            if SeMISPaperARSPolicy.enabled(obj)
+                [xs,ys,steps]=SeMISPaperARSPolicy.select_seeds(obj,x,y,N);return;
+            end
+            [xs,ys]=SedSlt(obj,x,y,N);steps=round(N/size(xs,2));
+        end
+        function yes=stop(obj)
+            if SeMISPaperARSPolicy.enabled(obj),yes=SeMISPaperARSPolicy.stop(obj);
+            else,yes=obj.FlgCvg;end
+        end
+        function [obj,Ncal]=after_advance(obj,x,y,g)
+            Ncal=0;
+            if SeMISPaperARSPolicy.enabled(obj),[obj,Ncal]=SeMISPaperARSPolicy.after_advance(obj,x,y,g);end
+        end
+        function ratio=proposal_log_ratio(~,ll,oldG,newG)
+            % Pure source-SIR density ratio: cached terms, no ARS assumptions.
+            assert(isnumeric(ll)&&isreal(ll)&&all(isfinite(ll)|ll==-inf,'all'), ...
+                'RawMIS:LogLikelihood','Cached log likelihood must be finite or negative infinity.');
+            old=oldG.parameters;next=newG.parameters;
+            ratio=factor(next)-factor(old);
+            assert(~any(isnan(ratio)|ratio==inf,'all'),'RawMIS:Ratio','Undefined or infinite positive density ratio.');
+            function value=factor(g)
+                assert(isnumeric(g)&&isreal(g)&&isvector(g)&&numel(g)==2&& ...
+                    (isequal(g(:)',[-inf,-inf])||all(isfinite(g),'all')), ...
+                    'RawMIS:Parameters','Expected [-Inf,-Inf] prior or finite [r,rmax].');
+                if g(1)==-inf,value=zeros(size(ll));
+                else,value=min(ll-g(2)-g(1),0);end
+            end
+        end
+        function ratio=raw_log_ratio(obj,ll,oldG,newG)
+            assert(SeMISPaperARSPolicy.enabled(obj),'SeMISPaperARS:Policy','Raw ratio API belongs to the explicit paper ARS policy.');
+            ratio=SeMISPaperARSPolicy.raw_beta(ll,oldG.parameters,newG.parameters);
+        end
+
+    end
+
 end
 

@@ -27,9 +27,15 @@ classdef SuS_Bay_Nataf
     end
 
     methods
-        function obj = SuS_Bay_Nataf(LKF)
+        function spec = sampler_profile(~,family,name)
+            spec=method_sampler_profile(family,name);
+        end
+        function obj = SuS_Bay_Nataf(LKF, method_profile)
+            if nargin < 2 || isempty(method_profile), method_profile='author_latest'; end
+            setup_semcs();
             obj.LKF  = LKF;
             obj.Ndim = LKF.Ndim;
+            obj=semcs.configure_method_profile(obj,'sus_bayes',method_profile);
         end
 
         function logLi = EvlLKF(obj)
@@ -217,5 +223,16 @@ classdef SuS_Bay_Nataf
             x = obj.LKF.Pdis.U2X(u);
         end
     end
+    methods
+        function [y,g,obj,Ncal]=advance(obj,x,y,p)
+            [g,obj]=obj.UpdObj(y,p);Ncal=0;
+        end
+        function [xs,ys,steps]=select_seeds(obj,x,y,N)
+            [xs,ys]=SedSlt(obj,x,y,N);steps=round(N/size(xs,2));
+        end
+        function yes=stop(obj),yes=obj.FlgCvg;end
+
+    end
+
 end
 

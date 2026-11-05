@@ -1,72 +1,46 @@
-# Sequential Multiple Importance Sampling for Bayesian Inference — MATLAB
+# SeMIS Bayesian — unified SeMCS (matlab)
 
-## Overview
-Constructs adaptive intermediate distributions in Nataf standard-normal space, then estimates log Bayesian evidence using multiple importance sampling (MIS). The driver also reports SIS and SuS reference estimates. The default sampler is ES. Optional kernels do not mean every combination was evaluated in the cited paper.
+This update retains the tested numerical algorithms and uses the common SeMCS engine and common MCMC implementation. Method-specific state and policies remain in the method classes; state evolves in G. The common core is bundled byte for byte so installation does not depend on an unreleased reliability repository.
 
-## Structure
-- `drive_SuS_SeMIS.m` — repeated-run example driver.
-- `SeMCS.m` — sequential sampling loop.
-- `SeMIS_Bay_Nataf.m` and `SuS_Bay_Nataf.m` — intermediate distributions, seeds and stopping conditions.
-- `MIS.m` — evidence and posterior post-processing.
-- `Likelihood-functions/` — bundled likelihood/prior models.
-- `MCMC-samplers/` — four kernels and their shared `MCMCBase` protocol.
+## Qualified entrypoint
 
-## Quick start
-Run from this repository's root. Each checkout contains its own helpers and does not require a sibling repository.
+The qualified profile is `author_latest with explicit coordinate-pi ES each_step overrides`, with estimator `source_legacy_mis`. The existing drivers and optional policies remain available for compatibility; use `run_qualified` for the settings in this table. No default is silently presented as paper-qualified.
 
 ```matlab
-addpath(genpath(pwd));
-rng(1, 'twister');
-target = LKF_nD_GaussianLogGamma(2);
-simulation = SeMCS(ES(SeMIS_Bay_Nataf(target)));
-simulation.NumSam = 1000;
-out = simulation.RunIte();
-result = MIS(out);
-logZ = result.Z;
-Ncal = sum(out.Ncal);
-terminal_converged = out.intBay.FlgCvg;
+addpath(pwd); addpath(genpath(pwd));
+setup_semcs();
+settings = run_qualified('semis_bayes_5Gaussian2', true); % construct/inspect only
+% result = run_qualified('semis_bayes_5Gaussian2'); % one actual run
 ```
 
-Inspect both the returned loop flag and `intBay.FlgCvg` (the intermediate model's terminal condition). A zero-seed exit can precede the terminal check; a finite evidence estimate alone is not proof of convergence. Likelihood calls are reported by `Ncal`, not by the number of posterior resamples.
+## Source-paper comparison
 
-## Examples and samplers
-| Example | Model / dimension | Selector |
-|---|---|---|
-| Eggbox | Two-dimensional multimodal likelihood | `LKF_2D_Eggbox()` |
-| GaussianShells | Dimension supplied by the caller | `LKF_nD_GaussianShells(Ndim)` |
-| GaussianLogGamma | Dimension supplied by the caller, at least 2 | `LKF_nD_GaussianLogGamma(Ndim)` |
+Each row uses its declared independent repeat count. Elog is mean Ncal × [SD(log Z)/|printed source log Z reference|]², with sample SD (ddof=1). R=Elog/source Elog; the fixed acceptance limit is R≤1.10.
 
-The existing driver uses 2D GaussianLogGamma, 1700 SeMIS samples and 1000 SuS samples per level, with 100 repetitions. The default conditional probability is 0.1. The quick start is a small usage example, not a paper-reproduction experiment.
+| Case | Per-level N | Repeats | Mean log Z | SD log Z | Mean Ncal | Elog | Paper Elog | R |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| semis_bayes_5Gaussian2 | 2606 | 1000 | -5.5083341 | 0.076726762 | 34440.177 | 6.6725744 | 6.160799 | 1.0830697 |
+| semis_bayes_eggbox2 | 1418 | 1000 | 235.85055 | 0.14247466 | 32386.808 | 0.011817751 | 0.011196 | 1.0555333 |
+| semis_bayes_loggamma10 | 1742 | 1000 | -40.971625 | 0.36140125 | 181065.12 | 14.109722 | 13.024356 | 1.0833335 |
+| semis_bayes_loggamma2 | 1702 | 100 | -8.1899691 | 0.087534026 | 20335.43 | 2.3229473 | 2.459367 | 0.94453057 |
+| semis_bayes_loggamma20 | 1841 | 1000 | -82.085657 | 0.74239119 | 444095 | 36.498898 | 33.965184 | 1.0745974 |
+| semis_bayes_loggamma5 | 1813 | 1000 | -20.467593 | 0.19052941 | 86992.985 | 7.5365499 | 7.337456 | 1.0271339 |
 
-Available samplers are `CW_aMH`, `aCS`, `HMC`, and `ES`. Set `SamplerClass = @aCS` (or another listed kernel) in the driver, or replace the constructor in the example above.
+Source papers: [DOI 10.1016/j.ymssp.2025.113788](https://doi.org/10.1016/j.ymssp.2025.113788).
 
-All kernels implement `SamGen(Nchains, Nsteps)` or `SamGen(U_seed, Y_seed, Nsteps)` and return samples, packed outputs, evaluation count and updated Bayesian state. Arrays use `Ndim × Nchains × Nsteps`; packed output rows are the intermediate log-likelihood factor, Gaussian log density and cached model outputs. Sampler dimensions are model-defined, not hard-coded to two.
+## Scope and limitations
 
-## Dependencies
-MATLAB with Statistics and Machine Learning Toolbox (`makedist`, distribution objects and resampling). Focused MATLAB-source checks also used GNU Octave 9.4 with private compatibility adapters; that does not establish native MATLAB/toolbox equivalence or make those adapters a public dependency.
+- Qualification applies to the listed profile, estimator, targets and budgets; it does not cover every optional setting.
+- No global finite-sample unbiasedness or universal posterior accuracy claim is made.
+- The migration bias check uses100 same-seed native/shared pairs per case, not1000 paired runs; the1000 cohorts are independent precision studies.
+- Paper efficiency points are treated as fixed; their Monte Carlo uncertainty and rounding are not included. Confidence intervals do not waive the1.10 point gate.
+- Existing100-run cases are listed as100, never relabelled1000. Prior100 and1000 cohorts are not pooled.
+- MATLAB LogGamma10 mean(Z)/Zref is about1.0364 (~3.09 sample standard errors); this inherited-versus-new-bias attribution is unresolved. Exact migration pairs rule out differences on their tested histories, not systematic bias outside them.
+- Negative mean(log Z) shifts, especially LogGamma20, cannot by themselves establish evidence-scale bias because log is nonlinear.
+- The qualified estimator is legacy MIS. paper_ars_20261103, paper_raw_mis and raw_density_ratio_mis remain optional inherited interfaces and are not qualified by this release.
 
-## Method & validation notes
-- **Implementation:** Intermediate thresholds, evidence/posterior formulas and model definitions are separate from the MCMC kernels. Numeric threshold vectors are stored in `G.parameters` (Python `G["parameters"]`); adaptation state occupies separate fields. The aCS `lambda` is a sampler scale, not the SeMIS intermediate-distribution threshold.
-- **Sampler policy:** aCS uses initial coordinate scale 1 and initial lambda 0.6, passing the final lambda to the next level. ES uses coordinatewise initial angles in `[0, pi]`. HMC uses analytic Gaussian-reference rotations with likelihood acceptance in Nataf space, not generic physical-space gradient integration.
-- **Outputs:** `MIS.Z` is natural-log evidence. Driver columns based on `100*(logZ/logZ_ref-1)` are its empirical mean and SD, not CoV of evidence. `Npos/Ncal` is the rounded Kish-weight-count ratio used to set the posterior resample count; it is not a correlation-adjusted posterior-mean ESS. Resampled posterior draws may repeat or remain dependent.
-- **Validation scope:** Interface, same-seed trajectory and evaluation-accounting checks are not proof of agreement with all paper statistics. Historical aCS uses seed-based scales/reset adaptation, so the current policy can change termination and results. Stopping rules have not been relaxed to hide unsuccessful runs.
-- **History:** Historical MATLAB source and current sampler-state wiring are audited separately. The public GaussianShells model has no matching example row in the final SeMIS journal paper. This documentation cleanup does not change the estimator, examples or driver defaults.
+See `VALIDATION_SUMMARY.json` for exact profile settings and source-report SHA bindings; `SEMCS_CORE_MANIFEST.json` binds every bundled core file. Existing licenses are retained, with the core notice in `LICENSE_SEMCS_CORE`. No private papers, per-run research outputs or local machine paths are bundled.
 
+## Open evidence-scale calibration
 
-- **Correlation scope:** Bundled examples use independent priors. The inherited MATLAB nonstandard-correlated-marginal branch references `GauIntPot`, which is not bundled; that branch is not independently runnable without the original helper. Python has its own quadrature implementation, but preserves the original positive-only search interval rather than extending negative-correlation support.
-
-## Reference & license
-[Paper DOI: 10.1016/j.ymssp.2025.113788](https://doi.org/10.1016/j.ymssp.2025.113788)
-```bibtex
-@article{li2026sequential,
-  title   = {Sequential multiple importance sampling for multi-modal Bayesian inference},
-  author  = {Li, Binbin and He, Xiao and Liao, Zihan},
-  journal = {Mechanical Systems and Signal Processing},
-  volume  = {245},
-  pages   = {113788},
-  year    = {2026},
-  doi     = {10.1016/j.ymssp.2025.113788}
-}
-```
-
-Licensed under the [MIT License](LICENSE); the original copyright notice is retained.
+MATLAB LogGamma20 mean(Z)/Zref is1.07657, with bootstrap95% interval[1.02154,1.13417]. This evidence-scale calibration question remains OPEN; the Elog criterion and exact migration pairs do not establish unbiased evidence. The literal fixed source N1700 experiment has not been executed; listed N values are the registered cost-matched budgets.
