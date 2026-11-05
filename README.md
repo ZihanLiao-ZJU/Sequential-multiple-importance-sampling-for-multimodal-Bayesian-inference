@@ -48,6 +48,12 @@ At each iteration, SeMIS:
 
 After the last iteration, the Bayesian evidence is estimated and posterior samples are obtained by resampling. All weights are computed in the log domain for numerical stability.
 
+## Common sequential sampling interface
+
+All five MATLAB toolboxes include the same `SeMCS.m`: construct `simulation = SeMCS(sampler)`, set `NumSam`, `ConPrb`, `MaxIte`, and `Verbose`, then call `raw = simulation.RunIte()`. The model in `sampler.BayStc` supplies initialization, level updates, seed selection, and the order of its original stopping checks. The framework stores `x`, `y`, and the evolving distribution states `g`; the estimator processes this history separately.
+
+Fixed MCMC settings, including initial step sizes, acceptance targets, adaptation-group counts and ES options, are properties of the sampler. Values that evolve, such as the adapted `lambda` and HMC trajectory time, are stored in the model's `G`. Different toolboxes retain their own numerical settings. `G.active` carries GSuS's evolving active-response mask together with each historical distribution state.
+
 ## Requirements
 
 - MATLAB
@@ -66,7 +72,7 @@ After the last iteration, the Bayesian evidence is estimated and posterior sampl
 │   ├── aCS.m                            % adaptive conditional sampling
 │   ├── CW_aMH.m                         % component-wise adaptive Metropolis
 │   ├── HMC.m                            % Hamiltonian Monte Carlo
-│   ├── MCMCBase.m                       % shared target, G and sampler configuration protocol
+│   ├── MCMCBase.m                       % shared target evaluation and fixed sampler configuration
 │   └── LICENSE                          % shared implementation license
 ├── Likelihood-functions/                % benchmark likelihoods with reference log-evidence
 ├── support functions/                   % MIS estimator and posterior resampling (MIS.m), Nataf transformation, weights, ...
