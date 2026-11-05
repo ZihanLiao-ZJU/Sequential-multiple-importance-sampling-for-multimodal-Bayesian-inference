@@ -34,7 +34,7 @@ classdef SuS_Bay_Nataf
             if nargin < 2 || isempty(method_profile), method_profile='author_latest'; end
             obj.LKF  = LKF;
             obj.Ndim = LKF.Ndim;
-            obj=semcs.configure_method_profile(obj,'sus_bayes',method_profile);
+            obj=MCMCBase.configure_method_profile(obj,'sus_bayes',method_profile);
         end
 
         function logLi = EvlLKF(obj)

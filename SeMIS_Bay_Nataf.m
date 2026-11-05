@@ -41,7 +41,7 @@ classdef SeMIS_Bay_Nataf
             % Construct with target model LKF defined in X-space
             obj.LKF  = LKF;
             obj.Ndim = LKF.Ndim;
-            obj=semcs.configure_method_profile(obj,'semis_bayes',method_profile);
+            obj=MCMCBase.configure_method_profile(obj,'semis_bayes',method_profile);
         end
 
         function logLi = EvlLKF(obj)

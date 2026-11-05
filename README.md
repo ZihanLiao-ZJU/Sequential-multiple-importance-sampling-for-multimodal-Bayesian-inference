@@ -61,9 +61,13 @@ After the last iteration, the Bayesian evidence is estimated and posterior sampl
 ├── SeMIS_Bay_Nataf.m                    % SeMIS intermediate distributions (soft truncation) in standard normal space
 ├── SuS_Bay_Nataf.m                      % subset simulation for Bayesian updating (comparison)
 ├── SeMCS.m                              % sequential Monte Carlo loop shared by SeMIS and SuS
-├── MCMC-samplers/
+├── MCMC-samplers/                      % common sampling implementations
 │   ├── ES.m                             % elliptical slice sampling
-│   └── aCS.m                            % adaptive conditional sampling
+│   ├── aCS.m                            % adaptive conditional sampling
+│   ├── CW_aMH.m                         % component-wise adaptive Metropolis
+│   ├── HMC.m                            % Hamiltonian Monte Carlo
+│   ├── MCMCBase.m                       % shared target, G and sampler configuration protocol
+│   └── LICENSE                          % shared implementation license
 ├── Likelihood-functions/                % benchmark likelihoods with reference log-evidence
 ├── support functions/                   % MIS estimator and posterior resampling (MIS.m), Nataf transformation, weights, ...
 ├── Operations on Logarithmic values/    % log-domain arithmetic (logsum, logplus, logmean, ...)
