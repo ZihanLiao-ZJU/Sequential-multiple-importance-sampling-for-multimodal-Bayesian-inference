@@ -8,10 +8,6 @@ classdef SuS_Bay_Nataf
     %       r_i   : adaptive threshold (level parameter)
     %       r_max : running maximum of log-likelihood
 
-    properties (Constant)
-        RunOptions = struct('InitializeProbability', true, 'PresetMode', 'overlay', 'MinimumLevels', 1, 'SeedFunction', 'SedSlt')
-    end
-
     properties
         MethodProfile = 'author_latest'
         LKF            % Likelihood/prior wrapper
@@ -98,7 +94,7 @@ classdef SuS_Bay_Nataf
         end
 
         function [u_sed, y_sed] = SltSed(obj,u,y,Nsam)
-            % Select seeds satisfying the hard truncation condition.
+            % Optional hard-threshold selection; SeMCS uses weighted SedSlt.
 
             u = u(1:obj.Ndim,:);
             y = y(1:obj.Nfun,:);

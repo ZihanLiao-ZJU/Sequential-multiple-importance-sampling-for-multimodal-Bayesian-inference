@@ -12,10 +12,6 @@ classdef SeMIS_Bay_Nataf
     %   The ratio beta_i(theta) in Eq. (24) is constructed elsewhere
     %   (e.g., in ResRat) as a ratio of two logLi terms.
 
-    properties (Constant)
-        RunOptions = struct('InitializeProbability', true, 'PresetMode', 'overlay', 'MinimumLevels', 1, 'SeedFunction', 'SedSlt')
-    end
-
     properties
         MethodProfile = 'author_latest'
         LKF            % Likelihood/prior wrapper (must provide .Ndim, .EvlLKF, .Pdis.U2X)
