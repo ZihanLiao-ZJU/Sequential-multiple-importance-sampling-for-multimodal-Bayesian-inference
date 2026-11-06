@@ -9,7 +9,7 @@ classdef SuS_Bay_Nataf
     %       r_max : running maximum of log-likelihood
 
     properties (Constant)
-        RunOptions = struct('UpdateOutputs', 2, 'PresetMode', 'overlay', 'MinimumLevels', 1, 'SeedFunction', 'SedSlt')
+        RunOptions = struct('InitializeProbability', true, 'PresetMode', 'overlay', 'MinimumLevels', 1, 'SeedFunction', 'SedSlt')
     end
 
     properties
@@ -32,14 +32,17 @@ classdef SuS_Bay_Nataf
     end
 
     methods
-        function spec = sampler_profile(~,family,name)
-            spec=method_sampler_profile(family,name);
-        end
         function obj = SuS_Bay_Nataf(LKF, method_profile)
-            if nargin < 2 || isempty(method_profile), method_profile='author_latest'; end
+            if nargin < 2 || isempty(method_profile)
+                method_profile = 'author_latest';
+            end
             obj.LKF  = LKF;
             obj.Ndim = LKF.Ndim;
-            obj.MethodProfile=method_profile;method_sampler_profile('sus_bayes',method_profile);obj.G.p=0.1;
+            if ~any(strcmp(char(method_profile), {'author_latest', 'paper'}))
+                error('method_sampler_profile:Name', 'Choose author_latest or paper.');
+            end
+            obj.MethodProfile = method_profile;
+            obj.G.p = 0.1;
         end
 
         function logLi = EvlLKF(obj)
@@ -66,9 +69,11 @@ classdef SuS_Bay_Nataf
             logPi = obj.Y(2,:);
         end
 
-        function [G,obj] = UpdObj(obj,y,p)
+        function [y,G,obj,N_cal] = UpdObj(obj,~,y,p)
             % Update G = [r_i, r_max] using standard SuS quantile rule.
 
+            % Prescribed G.p remains the live conditional-probability setting.
+            p = obj.G.p;
             logL = y(3,:);
             Nsam = size(logL,2);
 
@@ -89,6 +94,7 @@ classdef SuS_Bay_Nataf
 
             obj.G.parameters = G;
             G = obj.G;
+            N_cal = 0;
         end
 
         function [u_sed, y_sed] = SltSed(obj,u,y,Nsam)
@@ -231,49 +237,38 @@ classdef SuS_Bay_Nataf
     methods
 
         function options = sampler_options(obj, kernel)
-            spec = method_sampler_profile('sus_bayes', obj.MethodProfile);
+            name = obj.MethodProfile;
+            if isempty(name)
+                name = 'author_latest';
+            end
+            name = char(name);
+            if ~any(strcmp(name, {'author_latest', 'paper'}))
+                error('method_sampler_profile:Name', 'Choose author_latest or paper.');
+            end
+
+            settings = struct();
+            settings.aCS = struct('Sigma0Mode', 'seed_std', 'CarryLambda', false);
+            settings.ES = struct('ESMode', 'coordinate', 'Ntry', 20);
+            settings.aCS.AcceptArithmetic = 'log';
+            settings.aCS.CoordinateMode = 'identity';
+            settings.aCS.GroupMode = 'available';
+            settings.aCS.AcceptanceRateMode = 'attempts';
+            settings.ES.AcceptArithmetic = 'log';
+            settings.ES.CoordinateMode = 'identity';
+            settings.ES.SeedUpdateMode = 'each_step';
+            settings.CW_aMH = struct('AcceptArithmetic', 'log', 'PriorMode', 'gaussian', 'CoordinateMode', 'identity');
+            if strcmp(name, 'author_latest')
+                settings.aCS.AcceptArithmetic = 'exp';
+                settings.ES.AcceptArithmetic = 'exp';
+                settings.CW_aMH = struct('AcceptArithmetic', 'exp');
+                settings.aCS.GroupMode = 'fixed';
+            end
+
             options = struct();
-            if isfield(spec.options, kernel)
-                options = spec.options.(kernel);
+            if isfield(settings, kernel)
+                options = settings.(kernel);
             end
         end
 
     end
-end
-
-function spec = method_sampler_profile(family, name)
-    % Sampling settings for this method; thresholds, budgets and stopping are unchanged.
-    if nargin < 2 || isempty(name)
-        name = 'author_latest';
-    end
-
-    family = char(family);
-    name = char(name);
-    if ~any(strcmp(name, {'author_latest', 'paper'}))
-        error('method_sampler_profile:Name', 'Choose author_latest or paper.');
-    end
-
-    if ~strcmp(family, 'sus_bayes')
-        error('method_sampler_profile:Family', 'Unsupported method family for this model.');
-    end
-
-    options = struct();
-    options.aCS = struct('Sigma0Mode', 'seed_std', 'CarryLambda', false);
-    options.ES = struct('ESMode', 'coordinate', 'Ntry', 20);
-    options.aCS.AcceptArithmetic = 'log';
-    options.aCS.CoordinateMode = 'identity';
-    options.aCS.GroupMode = 'available';
-    options.aCS.AcceptanceRateMode = 'attempts';
-    options.ES.AcceptArithmetic = 'log';
-    options.ES.CoordinateMode = 'identity';
-    options.ES.SeedUpdateMode = 'each_step';
-    options.CW_aMH = struct('AcceptArithmetic', 'log', 'PriorMode', 'gaussian', 'CoordinateMode', 'identity');
-    if strcmp(name, 'author_latest')
-        options.aCS.AcceptArithmetic = 'exp';
-        options.ES.AcceptArithmetic = 'exp';
-        options.CW_aMH = struct('AcceptArithmetic', 'exp');
-        options.aCS.GroupMode = 'fixed';
-    end
-
-    spec = struct('family', family, 'name', name, 'default_sampler', 'aCS', 'options', options);
 end
