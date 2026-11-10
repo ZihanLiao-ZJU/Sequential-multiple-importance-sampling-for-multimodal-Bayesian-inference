@@ -2,8 +2,7 @@
 
 MATLAB implementation of the **Sequential Multiple Importance Sampling (SeMIS)** algorithm for multimodal Bayesian inference, with subset simulation (SuS) included for comparison. This code accompanies the paper:
 
-> **Sequential multiple importance sampling for multi-modal Bayesian inference.**
-> *Mechanical Systems and Signal Processing*, 245 (2026) 113788. doi: [10.1016/j.ymssp.2025.113788](https://doi.org/10.1016/j.ymssp.2025.113788)
+> Li, B., He, X., & Liao, Z. (2026). Sequential multiple importance sampling for multi-modal Bayesian inference. *Mechanical Systems and Signal Processing, 245*, Article 113788. [https://doi.org/10.1016/j.ymssp.2025.113788](https://doi.org/10.1016/j.ymssp.2025.113788)
 
 ## Contents
 
@@ -176,9 +175,9 @@ During the run, each iteration prints the sample size, the number of chains, the
 
 ## Citation
 
-If you use this code in your research, please cite:
+If you use this toolbox in your research, please cite:
 
-> Li, B., He, X., & Liao, Z. (2026). Sequential multiple importance sampling for multi-modal Bayesian inference. *Mechanical Systems and Signal Processing*, 245, 113788. https://doi.org/10.1016/j.ymssp.2025.113788
+> Li, B., He, X., & Liao, Z. (2026). Sequential multiple importance sampling for multi-modal Bayesian inference. *Mechanical Systems and Signal Processing, 245*, Article 113788. [https://doi.org/10.1016/j.ymssp.2025.113788](https://doi.org/10.1016/j.ymssp.2025.113788)
 
 ```bibtex
 @article{li2026sequential,
