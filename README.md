@@ -50,7 +50,7 @@ After the last iteration, the Bayesian evidence is estimated and posterior sampl
 
 ## Common sequential sampling interface
 
-All five MATLAB toolboxes include the same `SeMCS.m`: construct `simulation = SeMCS(sampler)`, set `NumSam`, `ConPrb`, `MaxIte`, and `Verbose`, then call `raw = simulation.RunIte()`. The model in `sampler.BayStc` supplies initialization, level updates, seed selection, and the order of its original stopping checks. The framework stores `x`, `y`, and the evolving distribution states `g`; the estimator processes this history separately.
+All five MATLAB toolboxes include the same `SeMCS.m`: choose a sampler, construct `simulation = SeMCS(sampler)`, set a constant `simulation.NumSam`, then call `raw = simulation.RunIte()`. The model in `sampler.BayStc` supplies initialization, level updates, seed selection, and the order of its original stopping checks. The framework stores `x`, `y`, and the evolving distribution states `g`; the estimator processes this history separately.
 
 Fixed MCMC settings, including initial step sizes, acceptance targets, adaptation-group counts and ES options, are properties of the sampler. Values that evolve, such as the adapted `lambda` and HMC trajectory time, are stored in the model's `G`. Different toolboxes retain their own numerical settings. `G.active` carries GSuS's evolving active-response mask together with each historical distribution state.
 
@@ -83,21 +83,19 @@ Fixed MCMC settings, including initial step sizes, acceptance targets, adaptatio
 
 ## Quick start
 
-Set `MaxIte` to the maximum number of sampled levels. A scalar `NumSam` is reused; a vector is a finite per-level budget. The run returns when either limit is reached, and `flg_cvg` reports the method's own convergence criterion. Entries in `G` patch intermediate states; omitted fields and carried `lambda`/`HMC_time` are retained.
+Edit the existing assignments in `drive_SuS_SeMIS.m`:
 
-1. Add the repository and all its subfolders to the MATLAB path, for example from the repository root:
+1. Select `Tfun` and `Ndim`; the defaults are `LKF_nD_GaussianLogGamma(Ndim)` and `Ndim = 2`.
+2. Use constant sample counts per level: `smc_SeMIS.NumSam = 1700` and `smc_SuS.NumSam = 1000` by default.
+3. Choose `SamplerClass = @ES` (the default), or `@aCS`, `@CW_aMH` or `@HMC`.
 
-   ```matlab
-   >> addpath(genpath(pwd))
-   ```
+For one comparison run, change the script's `Nrun = 100` to `Nrun = 1`. Then run the original entry point from the repository root; it adds the subfolders itself:
 
-2. Run the driver:
+```matlab
+drive_SuS_SeMIS
+```
 
-   ```matlab
-   >> drive_SuS_SeMIS
-   ```
-
-The driver defines the benchmark problem (by default `LKF_nD_GaussianLogGamma` with `Ndim = 2`), runs SeMIS and SuS for 100 independent runs, and computes the evidence and efficiency statistics described below. To change the problem, edit the `Tfun = ...` line and `Ndim` at the top of `drive_SuS_SeMIS.m`. The sample size per level is set by `smc_SeMIS.NumSam` (default 1700) and `smc_SuS.NumSam` (default 1000).
+The script runs both SeMIS and SuS. Its unchanged default is 100 independent runs; use multiple runs for the reported evidence and efficiency statistics.
 
 ## Built-in examples
 
