@@ -8,11 +8,12 @@ MATLAB implementation of the **Sequential Multiple Importance Sampling (SeMIS)**
 ## Contents
 
 - [Overview](#overview)
+- [Common sequential sampling interface](#common-sequential-sampling-interface)
 - [Requirements](#requirements)
 - [Repository structure](#repository-structure)
 - [Quick start](#quick-start)
-- [Benchmark likelihoods](#benchmark-likelihoods)
-- [Custom likelihood](#custom-likelihood)
+- [Built-in examples](#built-in-examples)
+- [Using a custom likelihood](#using-a-custom-likelihood)
 - [Outputs](#outputs)
 - [Citation](#citation)
 - [License](#license)
@@ -61,7 +62,7 @@ Fixed MCMC settings, including initial step sizes, acceptance targets, adaptatio
 
 ## Repository structure
 
-```
+```text
 .
 ├── drive_SuS_SeMIS.m                    % driver: runs SeMIS and SuS on a benchmark problem
 ├── SeMIS_Bay_Nataf.m                    % SeMIS intermediate distributions (soft truncation) in standard normal space
@@ -99,7 +100,7 @@ Set `MaxIte` to the maximum number of sampled levels. A scalar `NumSam` is reuse
 
 The driver defines the benchmark problem (by default `LKF_nD_GaussianLogGamma` with `Ndim = 2`), runs SeMIS and SuS for 100 independent runs, and computes the evidence and efficiency statistics described below. To change the problem, edit the `Tfun = ...` line and `Ndim` at the top of `drive_SuS_SeMIS.m`. The sample size per level is set by `smc_SeMIS.NumSam` (default 1700) and `smc_SuS.NumSam` (default 1000).
 
-## Benchmark likelihoods
+## Built-in examples
 
 | File | Description | Reference log-evidence |
 |---|---|---|
@@ -107,9 +108,9 @@ The driver defines the benchmark problem (by default `LKF_nD_GaussianLogGamma` w
 | `LKF_nD_GaussianLogGamma.m` | Gaussian + LogGamma, n-dimensional | −8.19 (n = 2), −20.47 (n = 5), −40.94 (n = 10), −81.887 (n = 20) |
 | `LKF_nD_GaussianShells.m` | two Gaussian shells, n-dimensional | −1.75 (n = 2) to −168.16 (n = 70); see the file header |
 
-Each likelihood class provides the prior (`Pdis`), the log-likelihood and the reference value `logz_ref` used by the driver. To solve your own problem, see [Custom likelihood](#custom-likelihood).
+Each likelihood class provides the prior (`Pdis`), the log-likelihood and the reference value `logz_ref` used by the driver. To solve your own problem, see [Custom likelihood](#using-a-custom-likelihood).
 
-## Custom likelihood
+## Using a custom likelihood
 
 Any user-defined Bayesian updating problem can be solved by writing a likelihood class with the same interface as the files in `Likelihood-functions/` and passing it to the driver in place of the benchmark. The algorithm only accesses the following members:
 
@@ -194,3 +195,4 @@ If you use this code in your research, please cite:
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+
