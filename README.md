@@ -76,19 +76,17 @@ After the last iteration, the Bayesian evidence is estimated and posterior sampl
 
 ## Quick start
 
-Edit the existing assignments in `drive_SuS_SeMIS.m`:
+Edit `Tfun`, `Ndim`, `Nrun`, `SamplerClass`, `smc_SeMIS.NumSam` and `smc_SuS.NumSam` inside `drive_SuS_SeMIS.m`. Select `SamplerClass = @ES` (the default), or choose another supplied sampler: `CW_aMH`, `aCS`, `HMC` or `ES`.
 
-1. Select `Tfun` and `Ndim`; the defaults are `LKF_nD_GaussianLogGamma(Ndim)` and `Ndim = 2`.
-2. Use constant sample counts per level: `smc_SeMIS.NumSam = 1700` and `smc_SuS.NumSam = 1000` by default.
-3. Choose `SamplerClass = @ES` (the default), or `@aCS`, `@CW_aMH` or `@HMC`.
+The script runs SeMIS and SuS on `LKF_nD_GaussianLogGamma(2)`, with 1700 and 1000 samples per level, respectively. The default is 100 independent runs. For a single run, set `Nrun = 1` inside the script.
 
-For one comparison run, change the script's `Nrun = 100` to `Nrun = 1`. Then run the original entry point from the repository root; it adds the subfolders itself:
+Run the chosen script from the repository root:
 
 ```matlab
 drive_SuS_SeMIS
 ```
 
-The script runs both SeMIS and SuS. Its unchanged default is 100 independent runs; use multiple runs for the reported evidence and efficiency statistics.
+Use multiple runs to estimate statistics across independent runs.
 
 ## Built-in examples
 
