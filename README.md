@@ -76,6 +76,8 @@ After the last iteration, the Bayesian evidence is estimated and posterior sampl
 
 ## Quick start
 
+Add this repository and all its subfolders to the MATLAB path before running the script.
+
 Edit `Tfun`, `Ndim`, `Nrun`, `SamplerClass`, `smc_SeMIS.NumSam` and `smc_SuS.NumSam` inside `drive_SuS_SeMIS.m`. Select `SamplerClass = @ES` (the default), or choose another supplied sampler: `CW_aMH`, `aCS`, `HMC` or `ES`.
 
 The script runs SeMIS and SuS on `LKF_nD_GaussianLogGamma(2)`, with 1700 and 1000 samples per level, respectively. The default is 100 independent runs. For a single run, set `Nrun = 1` inside the script.

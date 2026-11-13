@@ -1,6 +1,5 @@
 % Select CW_aMH, aCS, HMC, or ES; the original default is ES.
 SamplerClass = @ES;
-addpath(genpath(fileparts(mfilename('fullpath'))));
 
 %% Problem definition and target density
 Ndim = 2;                                      % Parameter dimension
